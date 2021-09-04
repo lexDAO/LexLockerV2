@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-pragma solidity ^0.8.0;
+pragma solidity 0.8.7;
 /// @notice Bilateral escrow for ETH and ERC20/721.
 /// @author LexDAO LLC.
 contract LexLockerLite {
@@ -36,15 +36,7 @@ contract LexLockerLite {
         bool active;
         uint256 fee;
     }
-    /// @dev Guard for reentrancy checks.
-    uint256 status;
-    modifier guard() {
-        require(status == 1,'reentrant'); 
-        status = 2; 
-        _;
-        status = 1;
-    }
-    
+
     /// @notice Deposits tokens (ERC20/721) into escrow - locked funds can be released by `msg.sender` `depositor` - both parties can lock for `resolver`. 
     /// @param receiver The account that receives funds.
     /// @param resolver The account that unlock funds.
@@ -52,16 +44,16 @@ contract LexLockerLite {
     /// @param value The amount of funds - if `nft`, the 'tokenId'.
     /// @param nft If 'false', ERC-20 is assumed, otherwise, non-fungible asset.
     /// @param details Describes context of escrow - stamped into event.
-    function deposit(address receiver, address resolver, address token, uint256 value, bool nft, string calldata details) external guard payable returns (uint256 registration) {
+    function deposit(address receiver, address resolver, address token, uint256 value, bool nft, string calldata details) external payable returns (uint256 registration) {
         require(resolvers[resolver].active, "resolver not active");
-        // @dev Handle ETH/ERC20/721 deposit.
+        /// @dev Handle ETH/ERC20/721 deposit.
         if (msg.value != 0) {
             require(msg.value == value, "Wrong msg.value");
-            if (token != address(0)) token = address(0); // @dev Override just to clarify ETH is used.
+            if (token != address(0)) token = address(0); /// @dev Override just to clarify ETH is used.
         } else {
             safeTransferFrom(token, msg.sender, address(this), value);
         }
-        // @dev Increment registered lockers and assign # to escrow deposit.
+        /// @dev Increment registered lockers and assign # to escrow deposit.
         lockerCount++;
         registration = lockerCount;
         lockers[registration] = Locker(nft, false, false, msg.sender, receiver, resolver, token, value);
@@ -70,16 +62,16 @@ contract LexLockerLite {
     
     /// @notice Releases escrowed assets to designated `receiver` - can only be called by `depositor` if not `locked`.
     /// @param registration The index of escrow deposit.
-    function release(uint256 registration) external guard {
+    function release(uint256 registration) external {
         Locker storage locker = lockers[registration]; 
         require(msg.sender == locker.depositor, "not depositor");
         require(!locker.locked, "locked");
-        // @dev Handle asset transfer.
-        if (locker.token == address(0)) { // @dev Release ETH.
+        /// @dev Handle asset transfer.
+        if (locker.token == address(0)) { /// @dev Release ETH.
             safeTransferETH(locker.receiver, locker.value);
-        } else if (!locker.nft) { // @dev Release ERC20.
+        } else if (!locker.nft) { /// @dev Release ERC20.
             safeTransfer(locker.token, locker.receiver, locker.value);
-        } else { // @dev Release NFT.
+        } else { /// @dev Release NFT.
             safeTransferFrom(locker.token, address(this), locker.receiver, locker.value);
         }
         locker.released = true;
@@ -88,7 +80,7 @@ contract LexLockerLite {
     
     /// @notice Locks escrowed assets for resolution - can only be called by locker parties.
     /// @param registration The index of escrow deposit.
-    function lock(uint256 registration) external guard {
+    function lock(uint256 registration) external {
         Locker storage locker = lockers[registration];
         require(msg.sender == locker.depositor || msg.sender == locker.receiver, "Not locker party");
         locker.locked = true;
@@ -99,18 +91,18 @@ contract LexLockerLite {
     /// @param registration The registration index of escrow deposit.
     /// @param depositorAward The sum given to `depositor`.
     /// @param receiverAward The sum given to `receiver`.
-    function resolve(uint256 registration, uint256 depositorAward, uint256 receiverAward, string calldata details) external guard {
+    function resolve(uint256 registration, uint256 depositorAward, uint256 receiverAward, string calldata details) external {
         Locker storage locker = lockers[registration]; 
         require(msg.sender == locker.resolver, "not resolver");
         require(locker.locked, "not locked");
-        // @dev Handle asset transfer.
-        if (locker.token == address(0)) { // @dev Split ETH.
+        /// @dev Handle asset transfer.
+        if (locker.token == address(0)) { /// @dev Split ETH.
             safeTransferETH(locker.depositor, depositorAward);
             safeTransferETH(locker.receiver, receiverAward);
-        } else if (!locker.nft) { // @dev ...ERC20.
+        } else if (!locker.nft) { /// @dev ...ERC20.
             safeTransfer(locker.token, locker.depositor, depositorAward);
             safeTransfer(locker.token, locker.receiver, receiverAward);
-        } else { // @dev Award NFT.
+        } else { /// @dev Award NFT.
             if (depositorAward != 0) {
                 safeTransferFrom(locker.token, address(this), locker.depositor, locker.value);
             } else {
