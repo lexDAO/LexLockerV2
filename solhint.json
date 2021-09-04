@@ -1,15 +1,14 @@
 {
-  "extends": "solhint:recommended",
-  "plugins": ["prettier"],
   "rules": {
-    "avoid-suicide": "error",
-    "avoid-sha3": "warn",
-    "code-complexity": ["warn", 7],
-    "compiler-version": "off",
-    "max-states-count": ["error", 18],
-    "max-line-length": ["warn", 145],
-    "not-rely-on-time": "warn",
-    "quotes": ["warn", "double"],
-    "prettier/prettier": "off"
+    "no-unused-vars": "error",
+    "const-name-snakecase": "error",
+    "contract-name-camelcase": "error",
+    "event-name-camelcase": "error",
+    "func-name-mixedcase": "error",
+    "func-param-name-mixedcase": "error",
+    "modifier-name-mixedcase": "error",
+    "private-vars-leading-underscore": "error",
+    "var-name-mixedcase": "error",
+    "imports-on-top": "error"
   }
 }
