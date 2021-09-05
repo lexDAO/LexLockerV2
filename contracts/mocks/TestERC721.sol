@@ -3,10 +3,10 @@
 pragma solidity 0.8.7;
 
 /// @notice Minimalist NFT minter.
-contract MiniNFT {
+contract TestERC721 {
     uint256 public totalSupply;
-    string constant public name = "MiniNFT";
-    string constant public symbol = "mNFT";
+    string constant public name = "Test NFT";
+    string constant public symbol = "tNFT";
     
     mapping(address => uint256) public balanceOf;
     mapping(uint256 => address) public getApproved;
