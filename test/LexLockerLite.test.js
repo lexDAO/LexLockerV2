@@ -65,7 +65,6 @@ describe("LexLockerLite", function () {
     const locker = await Locker.deploy();
     await locker.deployed();
  
-    await nft.mint(1, "TEST");
     await nft.approve(locker.address, 1);
     
     await locker.connect(resolver).registerResolver(10, true);
@@ -85,7 +84,6 @@ describe("LexLockerLite", function () {
     const locker = await Locker.deploy();
     await locker.deployed();
  
-    await nft.mint(1, "TEST");
     await nft.approve(locker.address, 1);
     
     await locker.connect(resolver).registerResolver(10, true);
