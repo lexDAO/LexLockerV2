@@ -59,6 +59,7 @@ contract LexLocker {
         string calldata details
     ) external payable returns (uint256 registration) {
         require(resolvers[resolver].active, "resolver not active");
+        require(resolver != msg.sender && resolver != receiver, "resolver cannot be a contract party"); /// @dev Avoid conflicts.
         
         /// @dev Handle ETH/ERC-20/721 deposit.
         if (msg.value != 0) {
