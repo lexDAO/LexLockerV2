@@ -106,7 +106,7 @@ contract LexLocker {
     function lock(uint256 registration) external {
         Locker storage locker = lockers[registration];
         
-        require(msg.sender == locker.depositor || msg.sender == locker.receiver, "Not locker party");
+        require(msg.sender == locker.depositor || msg.sender == locker.receiver, "not locker party");
         
         locker.locked = true;
         
