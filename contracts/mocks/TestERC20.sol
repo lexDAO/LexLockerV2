@@ -22,7 +22,7 @@ contract TestERC20 {
 
     string public symbol;
 
-    uint8 public immutable decimals;
+    uint8 public immutable decimals = 18;
 
     /*///////////////////////////////////////////////////////////////
                              ERC20 STORAGE
@@ -47,12 +47,10 @@ contract TestERC20 {
 
     constructor(
         string memory _name,
-        string memory _symbol,
-        uint8 _decimals
+        string memory _symbol
     ) {
         name = _name;
         symbol = _symbol;
-        decimals = _decimals;
 
         DOMAIN_SEPARATOR = keccak256(
             abi.encode(
