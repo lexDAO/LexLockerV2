@@ -59,8 +59,8 @@ contract LexLocker {
         uint8 fee;
     }
     
-    // **** ESCROW PROTOCOL ****   //
-    // -------------------------- //
+    // **** ESCROW PROTOCOL **** //
+    // ------------------------ //
     /// @notice Deposits tokens (ERC-20/721) into escrow 
     /// - locked funds can be released by `msg.sender` `depositor` 
     /// - both parties can {lock} for `resolver`. 
@@ -170,8 +170,8 @@ contract LexLocker {
         emit Release(registration);
     }
 
-    // **** DISPUTE PROTOCOL ****   //
-    // --------------------------- //
+    // **** DISPUTE PROTOCOL **** //
+    // ------------------------- //
     /// @notice Locks escrowed assets for resolution - can only be called by locker parties.
     /// @param registration The index of escrow deposit.
     function lock(uint256 registration) external {
@@ -234,8 +234,8 @@ contract LexLocker {
         emit RegisterResolver(msg.sender, active, fee);
     }
 
-    // **** LEXDAO PROTOCOL ****  //
-    // ------------------------- //
+    // **** LEXDAO PROTOCOL **** //
+    // ------------------------ //
     /// @notice Protocol for LexDAO to maintain agreements that can be stamped into lockers.
     /// @param index # to register agreement under.
     /// @param agreement Text or link to agreement, etc. - this allows for amendments.
