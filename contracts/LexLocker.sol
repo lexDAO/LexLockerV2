@@ -4,14 +4,16 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import "./interfaces/IBentoBoxMinimal.sol";
 
-/// @notice Bilateral escrow for ETH and ERC-20/721 tokens.
+/// @notice Bilateral escrow for ETH and ERC-20/721 tokens with BentoBox integration.
 /// @author LexDAO LLC.
 contract LexLocker {
     IBentoBoxMinimal immutable bento;
     address public lexDAO;
     address immutable wETH;
     uint256 lockerCount;
-    
+    bytes32 public immutable DOMAIN_SEPARATOR;
+    bytes32 public constant INVOICE_HASH = keccak256("DepositWithInvoiceSig(address depositor,address receiver,address resolver,string details)");
+
     mapping(uint256 => string) public agreements;
     mapping(uint256 => Locker) public lockers;
     mapping(address => Resolver) public resolvers;
@@ -21,6 +23,16 @@ contract LexLocker {
         bento.registerProtocol();
         lexDAO = _lexDAO;
         wETH = _wETH;
+        
+        DOMAIN_SEPARATOR = keccak256(
+            abi.encode(
+                keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"),
+                keccak256(bytes("LexLocker")),
+                keccak256(bytes("1")),
+                block.chainid,
+                address(this)
+            )
+        );
     }
     
     /// @dev Events to assist web3 applications.
@@ -34,7 +46,9 @@ contract LexLocker {
         uint256 value, 
         uint256 indexed registration,
         string details);
+    event DepositWithInvoiceSig(address indexed depositor, address indexed receiver);
     event Release(uint256 indexed registration);
+    event Withdraw(uint256 indexed registration);
     event Lock(uint256 indexed registration, string details);
     event Resolve(uint256 indexed registration, uint256 indexed depositorAward, uint256 indexed receiverAward, string details);
     event RegisterResolver(address indexed resolver, bool indexed active, uint256 indexed fee);
@@ -42,7 +56,7 @@ contract LexLocker {
     event UpdateLexDAO(address indexed lexDAO);
     
     /// @dev Tracks registered escrow status.
-    struct Locker {  
+    struct Locker {
         bool bento;
         bool nft; 
         bool locked;
@@ -51,6 +65,7 @@ contract LexLocker {
         address resolver;
         address token;
         uint256 value;
+        uint256 termination;
     }
     
     /// @dev Tracks registered resolver status.
@@ -67,20 +82,22 @@ contract LexLocker {
     /// @param receiver The account that receives funds.
     /// @param resolver The account that unlock funds.
     /// @param token The asset used for funds.
-    /// @param value The amount of funds - if `nft`, the 'tokenId'.
+    /// @param value The amount of funds (milestones per array) - if `nft`, the 'tokenId' in first value is used.
+    /// @param termination Unix time upon which `depositor` can claim back funds.
     /// @param nft If 'false', ERC-20 is assumed, otherwise, non-fungible asset.
     /// @param details Describes context of escrow - stamped into event.
     function deposit(
         address receiver, 
         address resolver, 
         address token, 
-        uint256 value, 
+        uint256 value,
+        uint256 termination,
         bool nft, 
-        string calldata details
-    ) external payable returns (uint256 registration) {
+        string memory details
+    ) public payable returns (uint256 registration) {
         require(resolvers[resolver].active, "resolver not active");
-        require(resolver != msg.sender && resolver != receiver, "resolver cannot be a party"); /// @dev Avoid conflicts.
-        
+        require(resolver != msg.sender && resolver != receiver, "resolver cannot be party"); /// @dev Avoid conflicts.
+   
         /// @dev Handle ETH/ERC-20/721 deposit.
         if (msg.value != 0) {
             require(msg.value == value, "wrong msg.value");
@@ -89,13 +106,13 @@ contract LexLocker {
         } else {
             safeTransferFrom(token, msg.sender, address(this), value);
         }
-        
+ 
         /// @dev Increment registered lockers and assign # to escrow deposit.
         unchecked {
             lockerCount++;
         }
         registration = lockerCount;
-        lockers[registration] = Locker(false, nft, false, msg.sender, receiver, resolver, token, value);
+        lockers[registration] = Locker(false, nft, false, msg.sender, receiver, resolver, token, value, termination);
         
         emit Deposit(false, nft, msg.sender, receiver, resolver, token, value, registration, details);
     }
@@ -106,20 +123,22 @@ contract LexLocker {
     /// @param receiver The account that receives funds.
     /// @param resolver The account that unlock funds.
     /// @param token The asset used for funds (note: NFT not supported in BentoBox).
-    /// @param value The amount of funds (note: locker converts to 'shares').
+    /// @param value The amount of funds (milestones per array) (note: locker converts to 'shares').
+    /// @param termination Unix time upon which `depositor` can claim back funds.
     /// @param wrapBento If 'false', raw ERC-20 is assumed, otherwise, BentoBox 'shares'.
     /// @param details Describes context of escrow - stamped into event.
     function depositBento(
         address receiver, 
         address resolver, 
         address token, 
-        uint256 value, 
+        uint256 value,
+        uint256 termination,
         bool wrapBento,
-        string calldata details
-    ) external payable returns (uint256 registration) {
+        string memory details
+    ) public payable returns (uint256 registration) {
         require(resolvers[resolver].active, "resolver not active");
-        require(resolver != msg.sender && resolver != receiver, "resolver cannot be a party"); /// @dev Avoid conflicts.
-        
+        require(resolver != msg.sender && resolver != receiver, "resolver cannot be party"); /// @dev Avoid conflicts.
+ 
         /// @dev Conversion/check for BentoBox shares.
         value = bento.toShare(token, value, false);
 
@@ -135,24 +154,83 @@ contract LexLocker {
         } else {
             bento.transfer(token, msg.sender, address(this), value);
         }
-        
+
         /// @dev Increment registered lockers and assign # to escrow deposit.
         unchecked {
             lockerCount++;
         }
         registration = lockerCount;
-        lockers[registration] = Locker(true, false, false, msg.sender, receiver, resolver, token, value);
+        lockers[registration] = Locker(true, false, false, msg.sender, receiver, resolver, token, value, termination);
         
         emit Deposit(true, false, msg.sender, receiver, resolver, token, value, registration, details);
     }
     
-    /// @notice Releases escrowed assets to designated `receiver` - can only be called by `depositor` if not `locked`.
+    /// @notice Validates deposit request 'invoice' for locker escrow.
+    /// @param receiver The account that receives funds.
+    /// @param resolver The account that unlock funds.
+    /// @param token The asset used for funds.
+    /// @param value The amount of funds (milestones per array) - if `nft`, the 'tokenId'.
+    /// @param termination Unix time upon which `depositor` can claim back funds.
+    /// @param bentoBoxed If 'false', regular deposit is assumed, otherwise, BentoBox.
+    /// @param nft If 'false', ERC-20 is assumed, otherwise, non-fungible asset.
+    /// @param wrapBento If 'false', raw ERC-20 is assumed, otherwise, BentoBox 'shares'.
+    /// @param details Describes context of escrow - stamped into event.
+    /// @param v The recovery byte of the signature.
+    /// @param r Half of the ECDSA signature pair.
+    /// @param s Half of the ECDSA signature pair.
+    function depositWithInvoiceSig(
+        address receiver, 
+        address resolver, 
+        address token, 
+        uint256 value,
+        uint256 termination,
+        bool bentoBoxed,
+        bool nft, 
+        bool wrapBento,
+        string memory details,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) public payable {
+        /// @dev Validate basic elements of invoice.
+        bytes32 digest =
+            keccak256(
+                abi.encodePacked(
+                    "\x19\x01",
+                    DOMAIN_SEPARATOR,
+                    keccak256(
+                        abi.encode(
+                            INVOICE_HASH,
+                            msg.sender,
+                            receiver,
+                            resolver,
+                            details
+                        )
+                    )
+                )
+            );
+        address recoveredAddress = ecrecover(digest, v, r, s);
+        require(recoveredAddress == receiver, "invalid invoice");
+
+        /// @dev Perform deposit.
+        if (!bentoBoxed) {
+            deposit(receiver, resolver, token, value, termination, nft, details);
+        } else {
+            depositBento(receiver, resolver, token, value, termination, wrapBento, details);
+        }
+        
+        emit DepositWithInvoiceSig(msg.sender, receiver);
+    }
+    
+    /// @notice Releases escrowed assets to designated `receiver` 
+    /// - can only be called by `depositor` if not `locked`
+    /// - can be called after `termination` as optional extension.
     /// @param registration The index of escrow deposit.
     function release(uint256 registration) external {
         Locker storage locker = lockers[registration]; 
         
-        require(msg.sender == locker.depositor, "not depositor");
         require(!locker.locked, "locked");
+        require(msg.sender == locker.depositor, "not depositor");
         
         /// @dev Handle asset transfer.
         if (locker.token == address(0)) { /// @dev Release ETH.
@@ -169,6 +247,32 @@ contract LexLocker {
         
         emit Release(registration);
     }
+    
+    /// @notice Releases escrowed assets back to designated `depositor` 
+    /// - can only be called by `depositor` if `termination` reached.
+    /// @param registration The index of escrow deposit.
+    function withdraw(uint256 registration) external {
+        Locker storage locker = lockers[registration];
+        
+        require(msg.sender == locker.depositor, "not depositor");
+        require(!locker.locked, "locked");
+        require(block.timestamp >= locker.termination, "not terminated");
+        
+        /// @dev Handle asset transfer.
+        if (locker.token == address(0)) { /// @dev Release ETH.
+            safeTransferETH(locker.depositor, locker.value);
+        } else if (locker.bento) { /// @dev Release BentoBox shares.
+            bento.transfer(locker.token, address(this), locker.depositor, locker.value);
+        } else if (!locker.nft) { /// @dev Release ERC-20.
+            safeTransfer(locker.token, locker.depositor, locker.value);
+        } else { /// @dev Release NFT.
+            safeTransferFrom(locker.token, address(this), locker.depositor, locker.value);
+        }
+        
+        delete lockers[registration];
+        
+        emit Withdraw(registration);
+    }
 
     // **** DISPUTE PROTOCOL **** //
     // ------------------------- //
@@ -178,7 +282,7 @@ contract LexLocker {
     function lock(uint256 registration, string calldata details) external {
         Locker storage locker = lockers[registration];
         
-        require(msg.sender == locker.depositor || msg.sender == locker.receiver, "not locker party");
+        require(msg.sender == locker.depositor || msg.sender == locker.receiver, "not party");
         
         locker.locked = true;
         
@@ -337,7 +441,7 @@ contract LexLocker {
     /// @param value Token amount to send - if NFT, 'tokenId'.
     function safeTransferFrom(address token, address sender, address recipient, uint256 value) private {
         (bool success, bytes memory data) = token.call(abi.encodeWithSelector(0x23b872dd, sender, recipient, value)); // @dev transferFrom(address,address,uint256).
-        require(success && (data.length == 0 || abi.decode(data, (bool))), "pull transfer failed");
+        require(success && (data.length == 0 || abi.decode(data, (bool))), "pull failed");
     }
     
     /// @notice Provides 'safe' ETH transfer.
