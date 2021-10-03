@@ -2,7 +2,61 @@
 
 pragma solidity >=0.8.0 <0.9.0;
 
-import "./interfaces/IBentoBoxMinimal.sol";
+/// @notice Minimal BentoBox vault interface.
+/// @dev `token` is aliased as `address` from `IERC20` for simplicity.
+interface IBentoBoxMinimal {
+    /// @notice Registers contract so that users can approve it for BentoBox.
+    function registerProtocol() external;
+
+    /// @notice Provides way for users to sign approval for BentoBox spends.
+    function setMasterContractApproval(
+        address user,
+        address masterContract,
+        bool approved,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) external;
+
+    /// @dev Helper function to represent an `amount` of `token` in shares.
+    /// @param token The ERC-20 token.
+    /// @param amount The `token` amount.
+    /// @param roundUp If the result `share` should be rounded up.
+    /// @return share The token amount represented in shares.
+    function toShare(
+        address token,
+        uint256 amount,
+        bool roundUp
+    ) external view returns (uint256 share);
+
+    /// @notice Deposit an amount of `token` represented in either `amount` or `share`.
+    /// @param token_ The ERC-20 token to deposit.
+    /// @param from which account to pull the tokens.
+    /// @param to which account to push the tokens.
+    /// @param amount Token amount in native representation to deposit.
+    /// @param share Token amount represented in shares to deposit. Takes precedence over `amount`.
+    /// @return amountOut The amount deposited.
+    /// @return shareOut The deposited amount represented in shares.
+    function deposit(
+        address token_,
+        address from,
+        address to,
+        uint256 amount,
+        uint256 share
+    ) external payable returns (uint256 amountOut, uint256 shareOut);
+
+    /// @notice Transfer shares from a user account to another one.
+    /// @param token The ERC-20 token to transfer.
+    /// @param from which user to pull the tokens.
+    /// @param to which user to push the tokens.
+    /// @param share The amount of `token` in shares.
+    function transfer(
+        address token,
+        address from,
+        address to,
+        uint256 share
+    ) external;
+}
 
 /// @notice Bilateral escrow for ETH and ERC-20/721 tokens.
 /// @author LexDAO LLC.
@@ -91,21 +145,23 @@ contract LexLocker {
         }
         
         /// @dev Increment registered lockers and assign # to escrow deposit.
-        lockerCount++;
+        unchecked {
+            lockerCount++;
+        }
         registration = lockerCount;
         lockers[registration] = Locker(false, nft, false, msg.sender, receiver, resolver, token, value);
         
         emit Deposit(false, nft, msg.sender, receiver, resolver, token, value, registration, details);
     }
 
-    /// @notice Deposits tokens (ERC-20/721) into escrow 
+    /// @notice Deposits tokens (ERC-20/721) into BentoBox escrow 
     /// - locked funds can be released by `msg.sender` `depositor` 
     /// - both parties can {lock} for `resolver`. 
     /// @param receiver The account that receives funds.
     /// @param resolver The account that unlock funds.
     /// @param token The asset used for funds (note: NFT not supported in BentoBox).
-    /// @param value The amount of funds (note: locker converts to shares).
-    /// @param wrapBento If 'false', raw ERC-20 is assumed, otherwise, BentoBox shares.
+    /// @param value The amount of funds (note: locker converts to 'shares').
+    /// @param wrapBento If 'false', raw ERC-20 is assumed, otherwise, BentoBox 'shares'.
     /// @param details Describes context of escrow - stamped into event.
     function depositBento(
         address receiver, 
@@ -135,7 +191,9 @@ contract LexLocker {
         }
         
         /// @dev Increment registered lockers and assign # to escrow deposit.
-        lockerCount++;
+        unchecked {
+            lockerCount++;
+        }
         registration = lockerCount;
         lockers[registration] = Locker(true, false, false, msg.sender, receiver, resolver, token, value);
         
@@ -192,22 +250,23 @@ contract LexLocker {
         require(depositorAward + receiverAward == locker.value, "not remainder");
         
         /// @dev Calculate resolution fee and apply to awards.
-        unchecked {
-            uint256 resolverFee = locker.value / resolvers[locker.resolver].fee / 2;
-            depositorAward -= resolverFee;
-            receiverAward -= resolverFee;
-        }
+        uint256 resolverFee = locker.value / resolvers[locker.resolver].fee;
+        depositorAward -= resolverFee / 2;
+        receiverAward -= resolverFee / 2;
         
-        /// @dev Handle asset transfer.
+        /// @dev Handle asset transfers.
         if (locker.token == address(0)) { /// @dev Split ETH.
             safeTransferETH(locker.depositor, depositorAward);
             safeTransferETH(locker.receiver, receiverAward);
+            safeTransferETH(locker.resolver, resolverFee);
         } else if (locker.bento) { /// @dev ...BentoBox shares.
             bento.transfer(locker.token, address(this), locker.depositor, depositorAward);
             bento.transfer(locker.token, address(this), locker.receiver, receiverAward);
+            bento.transfer(locker.token, address(this), locker.resolver, resolverFee);
         } else if (!locker.nft) { /// @dev ...ERC20.
             safeTransfer(locker.token, locker.depositor, depositorAward);
             safeTransfer(locker.token, locker.receiver, receiverAward);
+            safeTransfer(locker.token, locker.resolver, resolverFee);
         } else { /// @dev Award NFT.
             if (depositorAward != 0) {
                 safeTransferFrom(locker.token, address(this), locker.depositor, locker.value);
