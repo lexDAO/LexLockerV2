@@ -35,7 +35,7 @@ contract LexLocker {
         uint256 indexed registration,
         string details);
     event Release(uint256 indexed registration);
-    event Lock(uint256 indexed registration);
+    event Lock(uint256 indexed registration, string details);
     event Resolve(uint256 indexed registration, uint256 indexed depositorAward, uint256 indexed receiverAward, string details);
     event RegisterResolver(address indexed resolver, bool indexed active, uint256 indexed fee);
     event RegisterAgreement(uint256 indexed index, string agreement);
@@ -174,20 +174,22 @@ contract LexLocker {
     // ------------------------- //
     /// @notice Locks escrowed assets for resolution - can only be called by locker parties.
     /// @param registration The index of escrow deposit.
-    function lock(uint256 registration) external {
+    /// @param details Description of lock action (note: can link to secure dispute details, etc.).
+    function lock(uint256 registration, string calldata details) external {
         Locker storage locker = lockers[registration];
         
         require(msg.sender == locker.depositor || msg.sender == locker.receiver, "not locker party");
         
         locker.locked = true;
         
-        emit Lock(registration);
+        emit Lock(registration, details);
     }
     
     /// @notice Resolves locked escrow deposit in split between parties - if NFT, must be complete award (so, one party receives '0').
     /// @param registration The registration index of escrow deposit.
     /// @param depositorAward The sum given to `depositor`.
     /// @param receiverAward The sum given to `receiver`.
+    /// @param details Description of resolution (note: can link to secure judgment details, etc.).
     function resolve(uint256 registration, uint256 depositorAward, uint256 receiverAward, string calldata details) external {
         Locker storage locker = lockers[registration]; 
         
