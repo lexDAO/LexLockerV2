@@ -291,8 +291,8 @@ describe("LexLocker", function () {
     
     await locker.connect(resolver).registerResolver(true, 20);
     await locker.deposit(receiver.address, resolver.address, token.address, getBigNumber(1000), false, "TEST");
-    await locker.lock(1);
-    await locker.connect(receiver).lock(1);
+    await locker.lock(1, "TEST");
+    await locker.connect(receiver).lock(1, "TEST");
     await locker.release(1).should.be.revertedWith("locked");
   });
 
@@ -312,7 +312,7 @@ describe("LexLocker", function () {
     
     await locker.connect(resolver).registerResolver(true, 20);
     await locker.deposit(receiver.address, resolver.address, token.address, getBigNumber(1000), false, "TEST");
-    await locker.lock(1);
+    await locker.lock(1, "TEST");
   });
 
   it("Should allow lock by receiver", async function () {
@@ -331,7 +331,7 @@ describe("LexLocker", function () {
     
     await locker.connect(resolver).registerResolver(true, 20);
     await locker.deposit(receiver.address, resolver.address, token.address, getBigNumber(1000), false, "TEST");
-    await locker.connect(receiver).lock(1);
+    await locker.connect(receiver).lock(1, "TEST");
   });
 
   it("Should forbid lock by non-party", async function () {
@@ -350,7 +350,7 @@ describe("LexLocker", function () {
     
     await locker.connect(resolver).registerResolver(true, 20);
     await locker.deposit(receiver.address, resolver.address, token.address, getBigNumber(1000), false, "TEST");
-    await locker.connect(resolver).lock(1).should.be.revertedWith("not locker party");
+    await locker.connect(resolver).lock(1, "TEST").should.be.revertedWith("not locker party");
   });
 
   it("Should forbid lock of nonexistent locker", async function () {
@@ -370,8 +370,8 @@ describe("LexLocker", function () {
     await locker.connect(resolver).registerResolver(true, 20);
     await locker.deposit(receiver.address, resolver.address, token.address, getBigNumber(1000), false, "TEST");
     await locker.lock(2).should.be.reverted;
-    await locker.connect(receiver).lock(2).should.be.reverted;
-    await locker.connect(resolver).lock(2).should.be.reverted;
+    await locker.connect(receiver).lock(2, "TEST").should.be.reverted;
+    await locker.connect(resolver).lock(2, "TEST").should.be.reverted;
   });
  
   it("Should allow resolution by resolver over ERC20", async function () {
@@ -390,7 +390,7 @@ describe("LexLocker", function () {
     
     await locker.connect(resolver).registerResolver(true, 20);
     await locker.deposit(receiver.address, resolver.address, token.address, getBigNumber(1000), false, "TEST");
-    await locker.lock(1);
+    await locker.lock(1, "TEST");
     
     const resolutionAmount = getBigNumber(1000).div(2);
 
@@ -411,7 +411,7 @@ describe("LexLocker", function () {
  
     await locker.connect(resolver).registerResolver(true, 20);
     await locker.deposit(receiver.address, resolver.address, token.address, getBigNumber(1000), false, "TEST", { value: getBigNumber(1000) });
-    await locker.lock(1);
+    await locker.lock(1, "TEST");
     
     const resolutionAmount = getBigNumber(1000).div(2);
 
@@ -436,7 +436,7 @@ describe("LexLocker", function () {
     
     await locker.connect(resolver).registerResolver(true, 20);
     await locker.depositBento(receiver.address, resolver.address, token.address, getBigNumber(1000), true, "TEST");
-    await locker.lock(1);
+    await locker.lock(1, "TEST");
 
     const resolutionAmount = getBigNumber(1000).div(2);
 
@@ -459,7 +459,7 @@ describe("LexLocker", function () {
    
     await locker.connect(resolver).registerResolver(true, 20);
     await locker.deposit(receiver.address, resolver.address, nft.address, 1, true, "TEST");
-    await locker.lock(1);
+    await locker.lock(1, "TEST");
 
     await locker.connect(resolver).resolve(1, 1, 0, "TEST");
   });
@@ -480,7 +480,7 @@ describe("LexLocker", function () {
     
     await locker.connect(resolver).registerResolver(true, 20);
     await locker.deposit(receiver.address, resolver.address, token.address, getBigNumber(1000), false, "TEST");
-    await locker.lock(1);
+    await locker.lock(1, "TEST");
     
     const resolutionAmount = getBigNumber(1000).div(2);
 
@@ -526,7 +526,7 @@ describe("LexLocker", function () {
     
     await locker.connect(resolver).registerResolver(true, 20);
     await locker.deposit(receiver.address, resolver.address, token.address, getBigNumber(1000), false, "TEST");
-    await locker.lock(1);
+    await locker.lock(1, "TEST");
     
     const resolutionAmount = getBigNumber(1000).div(2);
 
@@ -549,7 +549,7 @@ describe("LexLocker", function () {
     
     await locker.connect(resolver).registerResolver(true, 20);
     await locker.deposit(receiver.address, resolver.address, token.address, getBigNumber(1000), false, "TEST");
-    await locker.lock(1);
+    await locker.lock(1, "TEST");
     
     const resolutionAmount = getBigNumber(1000).div(2);
 
