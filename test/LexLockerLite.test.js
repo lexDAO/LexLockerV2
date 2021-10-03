@@ -200,8 +200,8 @@ describe("LexLocker", function () {
     
     await locker.connect(depositor).registerResolver(true, 20);
     await locker.connect(receiver).registerResolver(true, 20);
-    await locker.deposit(receiver.address, depositor.address, token.address, getBigNumber(1000), false, "TEST").should.be.revertedWith("resolver cannot be a party");
-    await locker.deposit(receiver.address, receiver.address, token.address, getBigNumber(1000), false, "TEST").should.be.revertedWith("resolver cannot be a party");
+    await locker.deposit(receiver.address, depositor.address, token.address, getBigNumber(1000), false, "TEST").should.be.revertedWith("resolver cannot be party");
+    await locker.deposit(receiver.address, receiver.address, token.address, getBigNumber(1000), false, "TEST").should.be.revertedWith("resolver cannot be party");
   });
 
   it("Should forbid BentoBox deposit if resolver is party to locker", async function () {
@@ -220,8 +220,8 @@ describe("LexLocker", function () {
     
     await locker.connect(depositor).registerResolver(true, 20);
     await locker.connect(receiver).registerResolver(true, 20);
-    await locker.depositBento(receiver.address, depositor.address, token.address, getBigNumber(1000), true, "TEST").should.be.revertedWith("resolver cannot be a party");
-    await locker.depositBento(receiver.address, receiver.address, token.address, getBigNumber(1000), true, "TEST").should.be.revertedWith("resolver cannot be a party");
+    await locker.depositBento(receiver.address, depositor.address, token.address, getBigNumber(1000), true, "TEST").should.be.revertedWith("resolver cannot be party");
+    await locker.depositBento(receiver.address, receiver.address, token.address, getBigNumber(1000), true, "TEST").should.be.revertedWith("resolver cannot be party");
   });
 
   it("Should forbid release by non-depositor", async function () {
@@ -350,7 +350,7 @@ describe("LexLocker", function () {
     
     await locker.connect(resolver).registerResolver(true, 20);
     await locker.deposit(receiver.address, resolver.address, token.address, getBigNumber(1000), false, "TEST");
-    await locker.connect(resolver).lock(1, "TEST").should.be.revertedWith("not locker party");
+    await locker.connect(resolver).lock(1, "TEST").should.be.revertedWith("not party");
   });
 
   it("Should forbid lock of nonexistent locker", async function () {
