@@ -92,6 +92,43 @@ describe("LexLocker", function () {
     await locker.release(1);
   });
 
+  it("Should take an ETH deposit, wrap into BentoBox, and allow release by depositor", async function () {
+    let depositor, receiver, resolver, lexDAO;
+    [depositor, receiver, resolver, lexDAO] = await ethers.getSigners();
+
+    const bento = await ethers.getContractAt("IBentoBoxMinimal", bentoAddress);
+ 
+    const Token = await ethers.getContractFactory("TestERC20");
+    const token = await Token.deploy("poc", "poc");
+    await token.deployed();
+ 
+    const Locker = await ethers.getContractFactory("LexLocker");
+    const locker = await Locker.deploy(bentoAddress, lexDAO.address, wethAddress);
+    await locker.deployed();
+ 
+    token.approve(locker.address, getBigNumber(10000));
+    
+    await locker.connect(resolver).registerResolver(true, 20);
+    await locker.depositBento(receiver.address, resolver.address, token.address, getBigNumber(1000), true, "TEST", { value: getBigNumber(1000) });
+    await locker.release(1);
+  });
+
+  it("Should enforce ETH deposit and locker value parity for BentoBox", async function () {
+    let depositor, receiver, resolver, lexDAO;
+    [depositor, receiver, resolver, lexDAO] = await ethers.getSigners();
+
+    const Token = await ethers.getContractFactory("TestERC20");
+    const token = await Token.deploy("poc", "poc");
+    await token.deployed();
+ 
+    const Locker = await ethers.getContractFactory("LexLocker");
+    const locker = await Locker.deploy(bentoAddress, lexDAO.address, wethAddress);
+    await locker.deployed();
+ 
+    await locker.connect(resolver).registerResolver(true, 20);
+    await locker.depositBento(receiver.address, resolver.address, token.address, getBigNumber(10000), true, "TEST", { value: getBigNumber(1000) }).should.be.revertedWith("wrong msg.value");
+  });
+
   it("Should take an ERC721 NFT deposit and allow release by depositor", async function () {
     let depositor, receiver, resolver, lexDAO;
     [depositor, receiver, resolver, lexDAO] = await ethers.getSigners();
