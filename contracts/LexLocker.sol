@@ -8,15 +8,18 @@ import "./interfaces/IBentoBoxMinimal.sol";
 /// @author LexDAO LLC.
 contract LexLocker {
     IBentoBoxMinimal immutable bento;
+    address public lexDAO;
     address immutable wETH;
     uint256 lockerCount;
     
+    mapping(uint256 => string) public agreements;
     mapping(uint256 => Locker) public lockers;
     mapping(address => Resolver) public resolvers;
 
-    constructor(IBentoBoxMinimal _bento, address _wETH) {
+    constructor(IBentoBoxMinimal _bento, address _lexDAO, address _wETH) {
         bento = _bento;
         bento.registerProtocol();
+        lexDAO = _lexDAO;
         wETH = _wETH;
     }
     
@@ -35,6 +38,8 @@ contract LexLocker {
     event Lock(uint256 indexed registration);
     event Resolve(uint256 indexed registration, uint256 indexed depositorAward, uint256 indexed receiverAward, string details);
     event RegisterResolver(address indexed resolver, bool indexed active, uint256 indexed fee);
+    event RegisterAgreement(uint256 indexed index, string agreement);
+    event UpdateLexDAO(address indexed lexDAO);
     
     /// @dev Tracks registered escrow status.
     struct Locker {  
@@ -54,7 +59,7 @@ contract LexLocker {
         uint8 fee;
     }
     
-     // **** ESCROW PROTOCOL ****  //
+    // **** ESCROW PROTOCOL ****   //
     // -------------------------- //
     /// @notice Deposits tokens (ERC-20/721) into escrow 
     /// - locked funds can be released by `msg.sender` `depositor` 
@@ -161,7 +166,7 @@ contract LexLocker {
         emit Release(registration);
     }
 
-     // **** DISPUTE PROTOCOL ****  //
+    // **** DISPUTE PROTOCOL ****   //
     // --------------------------- //
     /// @notice Locks escrowed assets for resolution - can only be called by locker parties.
     /// @param registration The index of escrow deposit.
@@ -182,7 +187,6 @@ contract LexLocker {
     function resolve(uint256 registration, uint256 depositorAward, uint256 receiverAward, string calldata details) external {
         Locker storage locker = lockers[registration]; 
         
-        require(!locker.bento, "bento boxed");
         require(msg.sender == locker.resolver, "not resolver");
         require(locker.locked, "not locked");
         require(depositorAward + receiverAward == locker.value, "not remainder");
@@ -223,6 +227,25 @@ contract LexLocker {
     function registerResolver(bool active, uint8 fee) external {
         resolvers[msg.sender] = Resolver(active, fee);
         emit RegisterResolver(msg.sender, active, fee);
+    }
+
+    // **** LEXDAO PROTOCOL ****  //
+    // ------------------------- //
+    /// @notice Protocol for LexDAO to maintain agreements that can be stamped into lockers.
+    /// @param index # to register agreement under.
+    /// @param agreement Text or link to agreement, etc. - this allows for amendments.
+    function registerAgreement(uint256 index, string calldata agreement) external {
+        require(msg.sender == lexDAO, "not LexDAO");
+        agreements[index] = agreement;
+        emit RegisterAgreement(index, agreement);
+    }
+
+    /// @notice Protocol for LexDAO to update role.
+    /// @param _lexDAO Account to assign role to.
+    function updateLexDAO(address _lexDAO) external {
+        require(msg.sender == lexDAO, "not LexDAO");
+        lexDAO = _lexDAO;
+        emit UpdateLexDAO(_lexDAO);
     }
 
     // **** BATCHER UTILITIES **** //
@@ -282,12 +305,15 @@ contract LexLocker {
     }
 
     /// @dev Provides way to sign approval for `bento` spends by locker.
+    /// @param v The recovery byte of the signature.
+    /// @param r Half of the ECDSA signature pair.
+    /// @param s Half of the ECDSA signature pair.
     function setBentoApproval(uint8 v, bytes32 r, bytes32 s) external {
         bento.setMasterContractApproval(msg.sender, address(this), true, v, r, s);
     }
     
-     // **** TRANSFER HELPERS **** //
-    // -------------------------- //
+    // **** TRANSFER HELPERS **** //
+    // ------------------------- //
     /// @notice Provides 'safe' ERC-20/721 {transfer} for tokens that don't consistently return 'true/false'.
     /// @param token Address of ERC-20/721 token.
     /// @param recipient Account to send tokens to.
