@@ -77,7 +77,7 @@ The bool param `wrapBento`, if 'true', will pull and automatically deposit ERC20
 
 ![](https://i.imgur.com/aRbhQS9.png)
 
-An invoice pattern by a `receiver` can be further serviced by EIP-721 signature recovery and the `depositWithInvoiceSig` function. In this case, the `bentoBoxed` param represents the choice to make an integrated call to the `depositBento` function. Otherwise, the other params are fed into a typical deposit pattern, with the `v` / `r` / `s` param representing the elements of the off-chain signature for recovery.
+An invoice pattern by a `receiver` can be further serviced by EIP-712 signature recovery and the `depositWithInvoiceSig` function. In this case, the `bentoBoxed` param represents the choice to make an integrated call to the `depositBento` function. Otherwise, the other params are fed into a typical deposit pattern, with the `v` / `r` / `s` param representing the elements of the off-chain signature for recovery.
 
 ![](https://i.imgur.com/rr9ta5P.png)
 
