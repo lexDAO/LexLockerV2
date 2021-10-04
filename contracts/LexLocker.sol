@@ -101,8 +101,9 @@ contract LexLocker {
         /// @dev Handle ETH/ERC-20/721 deposit.
         if (msg.value != 0) {
             require(msg.value == value, "wrong msg.value");
-            /// @dev Override to clarify ETH is used.
+            /// @dev Overrides to clarify ETH is used.
             if (token != address(0)) token = address(0);
+            if (nft) nft = false;
         } else {
             safeTransferFrom(token, msg.sender, address(this), value);
         }
