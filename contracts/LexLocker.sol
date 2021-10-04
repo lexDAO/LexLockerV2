@@ -338,7 +338,7 @@ contract LexLocker {
     /// @param active Tracks willingness to serve - if 'true', can be joined to a locker.
     /// @param fee The divisor to determine resolution fee - e.g., if '20', fee is 5% of locker.
     function registerResolver(bool active, uint8 fee) external {
-        require(fee > 0, "fee must be greater than zero");
+        require(fee != 0, "fee must be greater than zero");
         resolvers[msg.sender] = Resolver(active, fee);
         emit RegisterResolver(msg.sender, active, fee);
     }
