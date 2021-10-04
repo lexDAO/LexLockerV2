@@ -82,7 +82,7 @@ contract LexLocker {
     /// @param receiver The account that receives funds.
     /// @param resolver The account that unlock funds.
     /// @param token The asset used for funds.
-    /// @param value The amount of funds (milestones per array) - if `nft`, the 'tokenId' in first value is used.
+    /// @param value The amount of funds - if `nft`, the 'tokenId' in first value is used.
     /// @param termination Unix time upon which `depositor` can claim back funds.
     /// @param nft If 'false', ERC-20 is assumed, otherwise, non-fungible asset.
     /// @param details Describes context of escrow - stamped into event.
@@ -123,7 +123,7 @@ contract LexLocker {
     /// @param receiver The account that receives funds.
     /// @param resolver The account that unlock funds.
     /// @param token The asset used for funds (note: NFT not supported in BentoBox).
-    /// @param value The amount of funds (milestones per array) (note: locker converts to 'shares').
+    /// @param value The amount of funds (note: locker converts to 'shares').
     /// @param termination Unix time upon which `depositor` can claim back funds.
     /// @param wrapBento If 'false', raw ERC-20 is assumed, otherwise, BentoBox 'shares'.
     /// @param details Describes context of escrow - stamped into event.
@@ -169,7 +169,7 @@ contract LexLocker {
     /// @param receiver The account that receives funds.
     /// @param resolver The account that unlock funds.
     /// @param token The asset used for funds.
-    /// @param value The amount of funds (milestones per array) - if `nft`, the 'tokenId'.
+    /// @param value The amount of funds - if `nft`, the 'tokenId'.
     /// @param termination Unix time upon which `depositor` can claim back funds.
     /// @param bentoBoxed If 'false', regular deposit is assumed, otherwise, BentoBox.
     /// @param nft If 'false', ERC-20 is assumed, otherwise, non-fungible asset.
@@ -289,7 +289,8 @@ contract LexLocker {
         emit Lock(registration, details);
     }
     
-    /// @notice Resolves locked escrow deposit in split between parties - if NFT, must be complete award (so, one party receives '0').
+    /// @notice Resolves locked escrow deposit in split between parties - if NFT, must be complete award (so, one party receives '0')
+    /// - `resolverFee` is automatically deducted from both parties' awards.
     /// @param registration The registration index of escrow deposit.
     /// @param depositorAward The sum given to `depositor`.
     /// @param receiverAward The sum given to `receiver`.
@@ -392,7 +393,8 @@ contract LexLocker {
         bytes32 r,
         bytes32 s
     ) external {
-        (bool success, ) = token.call(abi.encodeWithSelector(0xd505accf, msg.sender, address(this), amount, deadline, v, r, s)); // @dev permit(address,address,uint256,uint256,uint8,bytes32,bytes32).
+        /// @dev permit(address,address,uint256,uint256,uint8,bytes32,bytes32).
+        (bool success, ) = token.call(abi.encodeWithSelector(0xd505accf, msg.sender, address(this), amount, deadline, v, r, s));
         require(success, "permit failed");
     }
 
@@ -411,7 +413,8 @@ contract LexLocker {
         bytes32 r,
         bytes32 s
     ) external {
-        (bool success, ) = token.call(abi.encodeWithSelector(0x8fcbaf0c, msg.sender, address(this), nonce, expiry, true, v, r, s)); // @dev permit(address,address,uint256,uint256,bool,uint8,bytes32,bytes32).
+        /// @dev permit(address,address,uint256,uint256,bool,uint8,bytes32,bytes32).
+        (bool success, ) = token.call(abi.encodeWithSelector(0x8fcbaf0c, msg.sender, address(this), nonce, expiry, true, v, r, s));
         require(success, "permit failed");
     }
 
@@ -425,12 +428,13 @@ contract LexLocker {
     
     // **** TRANSFER HELPERS **** //
     // ------------------------- //
-    /// @notice Provides 'safe' ERC-20/721 {transfer} for tokens that don't consistently return 'true/false'.
-    /// @param token Address of ERC-20/721 token.
+    /// @notice Provides 'safe' ERC-20 {transfer} for tokens that don't consistently return 'true/false'.
+    /// @param token Address of ERC-20 token.
     /// @param recipient Account to send tokens to.
-    /// @param value Token amount to send - if NFT, 'tokenId'.
+    /// @param value Token amount to send.
     function safeTransfer(address token, address recipient, uint256 value) private {
-        (bool success, bytes memory data) = token.call(abi.encodeWithSelector(0xa9059cbb, recipient, value)); // @dev transfer(address,uint256).
+        /// @dev transfer(address,uint256).
+        (bool success, bytes memory data) = token.call(abi.encodeWithSelector(0xa9059cbb, recipient, value));
         require(success && (data.length == 0 || abi.decode(data, (bool))), "transfer failed");
     }
 
@@ -440,7 +444,8 @@ contract LexLocker {
     /// @param recipient Account to send tokens to.
     /// @param value Token amount to send - if NFT, 'tokenId'.
     function safeTransferFrom(address token, address sender, address recipient, uint256 value) private {
-        (bool success, bytes memory data) = token.call(abi.encodeWithSelector(0x23b872dd, sender, recipient, value)); // @dev transferFrom(address,address,uint256).
+        /// @dev transferFrom(address,address,uint256).
+        (bool success, bytes memory data) = token.call(abi.encodeWithSelector(0x23b872dd, sender, recipient, value));
         require(success && (data.length == 0 || abi.decode(data, (bool))), "pull failed");
     }
     
