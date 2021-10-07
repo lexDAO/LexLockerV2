@@ -41,7 +41,7 @@ Multiple escrows and LexLocker actions, such as releasing funds, can be combined
 
 ## Gas-less Invoicing
 
-Using the standard for off-chain signature recovery, [EIP-712](https://eips.ethereum.org/EIPS/eip-712), LexLocker allows a `receiver` party to sign and request an escrow deposit without needing to spend gas. In this manner, more legal privity can be established between parties (aside from course of performance), as key signatures between both `depositor` and `receiver` are established upon the registration with the `depositWithInvoiceSig` function.
+Using the standard for off-chain signature recovery, [EIP-712](https://eips.ethereum.org/EIPS/eip-712), LexLocker allows a `receiver` party to sign and request an escrow deposit without needing to spend gas. In this manner, more legal privity can be established between parties (aside from course of performance), as key signatures between both `depositor` and `receiver` are established upon the registration with the `depositInvoiceSig` function.
 
 ## Deployments
 
