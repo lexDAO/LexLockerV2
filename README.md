@@ -47,7 +47,7 @@ Using the standard for off-chain signature recovery, [EIP-712](https://eips.ethe
 
 Ethereum mainnet: [`0xF64440519992D28771414732653Af51e7866ca31`](https://etherscan.io/address/0xf64440519992d28771414732653af51e7866ca31#code)
 
-Polygon: [`0xc31699bf207b37d65ddb2147aA416662eE2521b6`](https://polygonscan.com/address/0xc31699bf207b37d65ddb2147aA416662eE2521b6#code) **ALPHA**
+Polygon: [`0xc31699bf207b37d65ddb2147aA416662eE2521b6`](https://polygonscan.com/address/0x455CfAa64b706BC0534bd08B9570aE7CbDDd7a0F#code) **ALPHA**
 
 ## Tests
 
