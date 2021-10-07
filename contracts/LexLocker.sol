@@ -12,7 +12,7 @@ contract LexLocker {
     address immutable wETH;
     uint256 lockerCount;
     bytes32 public immutable DOMAIN_SEPARATOR;
-    bytes32 public constant INVOICE_HASH = keccak256("DepositWithInvoiceSig(address depositor,address receiver,address resolver,string details)");
+    bytes32 public constant INVOICE_HASH = keccak256("DepositInvoiceSig(address depositor,address receiver,address resolver,string details)");
 
     mapping(uint256 => string) public agreements;
     mapping(uint256 => Locker) public lockers;
@@ -140,18 +140,15 @@ contract LexLocker {
         require(resolvers[resolver].active, "resolver not active");
         require(resolver != msg.sender && resolver != receiver, "resolver cannot be party"); /// @dev Avoid conflicts.
  
-        /// @dev Conversion/check for BentoBox shares.
-        value = bento.toShare(token, value, false);
-
         /// @dev Handle ETH/ERC-20 deposit.
         if (msg.value != 0) {
             require(msg.value == value, "wrong msg.value");
             /// @dev Override to clarify wETH is used in BentoBox for ETH.
             if (token != wETH) token = wETH;
-            bento.deposit{value: msg.value}(address(0), address(this), address(this), 0, msg.value);
+            (, value) = bento.deposit{value: msg.value}(address(0), address(this), address(this), msg.value, 0);
         } else if (wrapBento) {
             safeTransferFrom(token, msg.sender, address(bento), value);
-            bento.deposit(token, address(bento), address(this), 0, value);
+            (, value) = bento.deposit(token, address(bento), address(this), value, 0);
         } else {
             bento.transfer(token, msg.sender, address(this), value);
         }
@@ -383,7 +380,7 @@ contract LexLocker {
     /// @notice Provides EIP-2612 signed approval for this contract to spend user tokens.
     /// @param token Address of ERC-20 token.
     /// @param amount Token amount to grant spending right over.
-    /// @param deadline Termination for signed approval (UTC timestamp in seconds).
+    /// @param deadline Termination for signed approval in Unix time.
     /// @param v The recovery byte of the signature.
     /// @param r Half of the ECDSA signature pair.
     /// @param s Half of the ECDSA signature pair.
@@ -403,7 +400,7 @@ contract LexLocker {
     /// @notice Provides DAI-derived signed approval for this contract to spend user tokens.
     /// @param token Address of ERC-20 token.
     /// @param nonce Token owner's nonce - increases at each call to {permit}.
-    /// @param expiry Termination for signed approval - UTC timestamp in seconds.
+    /// @param expiry Termination for signed approval in Unix time.
     /// @param v The recovery byte of the signature.
     /// @param r Half of the ECDSA signature pair.
     /// @param s Half of the ECDSA signature pair.
