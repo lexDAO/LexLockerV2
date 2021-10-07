@@ -46,7 +46,7 @@ contract LexLocker {
         uint256 value, 
         uint256 indexed registration,
         string details);
-    event DepositWithInvoiceSig(address indexed depositor, address indexed receiver);
+    event DepositInvoiceSig(address indexed depositor, address indexed receiver);
     event Release(uint256 indexed registration);
     event Withdraw(uint256 indexed registration);
     event Lock(uint256 indexed registration, string details);
@@ -77,8 +77,8 @@ contract LexLocker {
     // **** ESCROW PROTOCOL **** //
     // ------------------------ //
     /// @notice Deposits tokens (ERC-20/721) into escrow 
-    /// - locked funds can be released by `msg.sender` `depositor` 
-    /// - both parties can {lock} for `resolver`. 
+    // - locked funds can be released by `msg.sender` `depositor` 
+    // - both parties can {lock} for `resolver`. 
     /// @param receiver The account that receives funds.
     /// @param resolver The account that unlock funds.
     /// @param token The asset used for funds.
@@ -119,8 +119,8 @@ contract LexLocker {
     }
 
     /// @notice Deposits tokens (ERC-20/721) into BentoBox escrow 
-    /// - locked funds can be released by `msg.sender` `depositor` 
-    /// - both parties can {lock} for `resolver`. 
+    // - locked funds can be released by `msg.sender` `depositor` 
+    // - both parties can {lock} for `resolver`. 
     /// @param receiver The account that receives funds.
     /// @param resolver The account that unlock funds.
     /// @param token The asset used for funds (note: NFT not supported in BentoBox).
@@ -179,7 +179,7 @@ contract LexLocker {
     /// @param v The recovery byte of the signature.
     /// @param r Half of the ECDSA signature pair.
     /// @param s Half of the ECDSA signature pair.
-    function depositWithInvoiceSig(
+    function depositInvoiceSig(
         address receiver, 
         address resolver, 
         address token, 
@@ -220,12 +220,12 @@ contract LexLocker {
             depositBento(receiver, resolver, token, value, termination, wrapBento, details);
         }
         
-        emit DepositWithInvoiceSig(msg.sender, receiver);
+        emit DepositInvoiceSig(msg.sender, receiver);
     }
     
     /// @notice Releases escrowed assets to designated `receiver` 
-    /// - can only be called by `depositor` if not `locked`
-    /// - can be called after `termination` as optional extension.
+    // - can only be called by `depositor` if not `locked`
+    // - can be called after `termination` as optional extension.
     /// @param registration The index of escrow deposit.
     function release(uint256 registration) external {
         Locker storage locker = lockers[registration]; 
@@ -250,7 +250,7 @@ contract LexLocker {
     }
     
     /// @notice Releases escrowed assets back to designated `depositor` 
-    /// - can only be called by `depositor` if `termination` reached.
+    // - can only be called by `depositor` if `termination` reached.
     /// @param registration The index of escrow deposit.
     function withdraw(uint256 registration) external {
         Locker storage locker = lockers[registration];
@@ -291,7 +291,7 @@ contract LexLocker {
     }
     
     /// @notice Resolves locked escrow deposit in split between parties - if NFT, must be complete award (so, one party receives '0')
-    /// - `resolverFee` is automatically deducted from both parties' awards.
+    // - `resolverFee` is automatically deducted from both parties' awards.
     /// @param registration The registration index of escrow deposit.
     /// @param depositorAward The sum given to `depositor`.
     /// @param receiverAward The sum given to `receiver`.
