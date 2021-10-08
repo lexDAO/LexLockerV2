@@ -1,20 +1,45 @@
 const { artifacts, ethers } = require("hardhat");
-const { BigNumber } = require("ethers")
+const { BigNumber, utils: { keccak256, defaultAbiCoder, toUtf8Bytes, solidityPack }, } = require("ethers")
 const { expect } = require("chai");
 const chai = require("chai");
 const { solidity } = require("ethereum-waffle");
+const { ecsign } = require("ethereumjs-util");
+
 const bentoAddress = "0xF5BCE5077908a1b7370B9ae04AdC565EBd643966";
 const wethAddress = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2";
+
+const carolPrivateKey = "0x5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a";
+
+const PERMIT_TYPEHASH = keccak256(toUtf8Bytes("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)"));
  
 chai
   .use(solidity)
   .should();
 
-const BASE_TEN = 10
+const BASE_TEN = 10;
 
 // Defaults to e18 using amount * 10^18
 function getBigNumber(amount, decimals = 18) {
   return BigNumber.from(amount).mul(BigNumber.from(BASE_TEN).pow(decimals))
+}
+
+function getDomainSeparator(tokenAddress, chainId) {
+  return keccak256(
+      defaultAbiCoder.encode(
+          ["bytes32", "uint256", "address"],
+          [keccak256(toUtf8Bytes("EIP712Domain(uint256 chainId,address verifyingContract)")), chainId, tokenAddress]
+      )
+  )
+}
+
+function getApprovalDigest(token, approve, nonce, deadline, chainId = 1) {
+  const DOMAIN_SEPARATOR = getDomainSeparator(token.address, chainId)
+  const msg = defaultAbiCoder.encode(
+      ["bytes32", "address", "address", "uint256", "uint256", "uint256"],
+      [PERMIT_TYPEHASH, approve.owner, approve.spender, approve.value, nonce, deadline]
+  )
+  const pack = solidityPack(["bytes1", "bytes1", "bytes32", "bytes32"], ["0x19", "0x01", DOMAIN_SEPARATOR, keccak256(msg)])
+  return keccak256(pack)
 }
 
 async function advanceBlock() {
@@ -66,8 +91,6 @@ const duration = {
     return BigNumber.from(val).mul(this.days("365"))
   },
 }
-
-// TO-DO eip712 approval stuff for BentoBox transfers, and invoice registration
 
 describe("LexLocker", function () {
   it("Should take an ERC20 token deposit and allow release by depositor", async function () {
@@ -750,4 +773,39 @@ describe("LexLocker", function () {
 
     locker.connect(nonLexDAO).updateLexDAO(newLexDAO.address).should.be.revertedWith("not LexDAO");
   });
+
+  it.skip("Should execute ERC20 token permit", async function () {
+    let depositor, lexDAO;
+    [depositor, lexDAO] = await ethers.getSigners();
+
+    const Token = await ethers.getContractFactory("TestERC20");
+    const token = await Token.deploy("poc", "poc");
+    await token.deployed();
+
+    const Locker = await ethers.getContractFactory("LexLocker");
+    const locker = await Locker.deploy(bentoAddress, lexDAO.address, wethAddress);
+    await locker.deployed();
+
+    const nonce = await token.nonces(depositor.address);
+
+    // deadline is set to August 29, 2023 5:30:30 AM GMT-04:00 DST
+    const deadline = 1693301430;
+
+    const digest = getApprovalDigest(
+        token,
+        {
+            owner: depositor.address,
+            spender: locker.address,
+            value: 1,
+        },
+        nonce,
+        deadline,
+        locker.provider._network.chainId
+    )
+    const { v, r, s } = ecsign(Buffer.from(digest.slice(2), "hex"), Buffer.from(carolPrivateKey.replace("0x", ""), "hex"))
+
+    await token.connect(depositor).permit(depositor.address, locker.address, 1, deadline, v, r, s, {
+        from: depositor.address,
+    })
+  })
 });
