@@ -108,7 +108,8 @@ describe("LexLocker", function () {
     token.approve(locker.address, getBigNumber(10000));
     
     await locker.connect(resolver).registerResolver(true, 20);
-    await locker.deposit(receiver.address, resolver.address, token.address, getBigNumber(1000), 0, false, "TEST");
+    await locker.deposit(receiver.address, resolver.address, token.address, [getBigNumber(1000), getBigNumber(2000)], 0, false, "TEST");
+    await locker.release(1);
     await locker.release(1);
   });
  
@@ -126,7 +127,8 @@ describe("LexLocker", function () {
     await locker.deployed();
 
     await locker.connect(resolver).registerResolver(true, 20);
-    await locker.deposit(receiver.address, resolver.address, token.address, getBigNumber(1000), 0, false, "TEST", { value: getBigNumber(1000) });
+    await locker.deposit(receiver.address, resolver.address, token.address, [getBigNumber(1000), getBigNumber(5000)], 0, false, "TEST", { value: getBigNumber(6000) });
+    await locker.release(1);
     await locker.release(1);
   });
 
@@ -143,7 +145,7 @@ describe("LexLocker", function () {
     await locker.deployed();
  
     await locker.connect(resolver).registerResolver(true, 20);
-    await locker.deposit(receiver.address, resolver.address, token.address, getBigNumber(10000), 0, false, "TEST", { value: getBigNumber(1000) }).should.be.revertedWith("wrong msg.value");
+    await locker.deposit(receiver.address, resolver.address, token.address, [getBigNumber(10000)], 0, false, "TEST", { value: getBigNumber(1000) }).should.be.revertedWith("WRONG_MSG_VALUE");
   });
 
   it("Should take an ERC20 token deposit, wrap into BentoBox, and allow release by depositor", async function () {
@@ -163,7 +165,8 @@ describe("LexLocker", function () {
     token.approve(locker.address, getBigNumber(10000));
     
     await locker.connect(resolver).registerResolver(true, 20);
-    await locker.depositBento(receiver.address, resolver.address, token.address, getBigNumber(1000), 0, true, "TEST");
+    await locker.depositBento(receiver.address, resolver.address, token.address, [getBigNumber(1000), getBigNumber(3000)], 0, true, "TEST");
+    await locker.release(1);
     await locker.release(1);
   });
 
@@ -184,7 +187,8 @@ describe("LexLocker", function () {
     token.approve(locker.address, getBigNumber(10000));
     
     await locker.connect(resolver).registerResolver(true, 20);
-    await locker.depositBento(receiver.address, resolver.address, token.address, getBigNumber(1000), 0, true, "TEST", { value: getBigNumber(1000) });
+    await locker.depositBento(receiver.address, resolver.address, token.address, [getBigNumber(1000), getBigNumber(1000)], 0, true, "TEST", { value: getBigNumber(2000) });
+    await locker.release(1);
     await locker.release(1);
   });
 
@@ -201,7 +205,7 @@ describe("LexLocker", function () {
     await locker.deployed();
  
     await locker.connect(resolver).registerResolver(true, 20);
-    await locker.depositBento(receiver.address, resolver.address, token.address, getBigNumber(10000), 0, true, "TEST", { value: getBigNumber(1000) }).should.be.revertedWith("wrong msg.value");
+    await locker.depositBento(receiver.address, resolver.address, token.address, [getBigNumber(10000)], 0, true, "TEST", { value: getBigNumber(1000) }).should.be.revertedWith("WRONG_MSG_VALUE");
   });
 
   it("Should take an ERC721 NFT deposit and allow release by depositor", async function () {
@@ -219,7 +223,7 @@ describe("LexLocker", function () {
     await nft.approve(locker.address, 1);
     
     await locker.connect(resolver).registerResolver(true, 20);
-    await locker.deposit(receiver.address, resolver.address, nft.address, 1, 0, true, "TEST");
+    await locker.deposit(receiver.address, resolver.address, nft.address, [1], 0, true, "TEST");
     await locker.release(1);
   });
 
@@ -237,7 +241,7 @@ describe("LexLocker", function () {
     
     token.approve(locker.address, getBigNumber(10000));
     
-    await locker.deposit(receiver.address, resolver.address, token.address, getBigNumber(1000), 0, false, "TEST").should.be.revertedWith("resolver not active");
+    await locker.deposit(receiver.address, resolver.address, token.address, [getBigNumber(1000)], 0, false, "TEST").should.be.revertedWith("RESOLVER_NOT_ACTIVE");
   });
 
   it("Should forbid BentoBox deposit if resolver not registered", async function () {
@@ -256,7 +260,7 @@ describe("LexLocker", function () {
  
     token.approve(locker.address, getBigNumber(10000));
     
-    await locker.depositBento(receiver.address, resolver.address, token.address, getBigNumber(1000), 0, true, "TEST").should.be.revertedWith("resolver not active");
+    await locker.depositBento(receiver.address, resolver.address, token.address, [getBigNumber(1000)], 0, true, "TEST").should.be.revertedWith("RESOLVER_NOT_ACTIVE");
   });
 
   it("Should forbid deposit if resolver is party to locker", async function () {
@@ -275,8 +279,8 @@ describe("LexLocker", function () {
     
     await locker.connect(depositor).registerResolver(true, 20);
     await locker.connect(receiver).registerResolver(true, 20);
-    await locker.deposit(receiver.address, depositor.address, token.address, getBigNumber(1000), 0, false, "TEST").should.be.revertedWith("resolver cannot be party");
-    await locker.deposit(receiver.address, receiver.address, token.address, getBigNumber(1000), 0, false, "TEST").should.be.revertedWith("resolver cannot be party");
+    await locker.deposit(receiver.address, depositor.address, token.address, [getBigNumber(1000)], 0, false, "TEST").should.be.revertedWith("RESOLVER_CANNOT_BE_PARTY");
+    await locker.deposit(receiver.address, receiver.address, token.address, [getBigNumber(1000)], 0, false, "TEST").should.be.revertedWith("RESOLVER_CANNOT_BE_PARTY");
   });
 
   it("Should forbid BentoBox deposit if resolver is party to locker", async function () {
@@ -295,8 +299,8 @@ describe("LexLocker", function () {
     
     await locker.connect(depositor).registerResolver(true, 20);
     await locker.connect(receiver).registerResolver(true, 20);
-    await locker.depositBento(receiver.address, depositor.address, token.address, getBigNumber(1000), 0, true, "TEST").should.be.revertedWith("resolver cannot be party");
-    await locker.depositBento(receiver.address, receiver.address, token.address, getBigNumber(1000), 0, true, "TEST").should.be.revertedWith("resolver cannot be party");
+    await locker.depositBento(receiver.address, depositor.address, token.address, [getBigNumber(1000)], 0, true, "TEST").should.be.revertedWith("RESOLVER_CANNOT_BE_PARTY");
+    await locker.depositBento(receiver.address, receiver.address, token.address, [getBigNumber(1000)], 0, true, "TEST").should.be.revertedWith("RESOLVER_CANNOT_BE_PARTY");
   });
 
   it("Should forbid release by non-depositor", async function () {
@@ -314,9 +318,9 @@ describe("LexLocker", function () {
     token.approve(locker.address, getBigNumber(10000));
     
     await locker.connect(resolver).registerResolver(true, 20);
-    await locker.deposit(receiver.address, resolver.address, token.address, getBigNumber(1000), 0, false, "TEST");
-    await locker.connect(receiver).release(1).should.be.revertedWith("not depositor");
-    await locker.connect(resolver).release(1).should.be.revertedWith("not depositor");
+    await locker.deposit(receiver.address, resolver.address, token.address, [getBigNumber(1000)], 0, false, "TEST");
+    await locker.connect(receiver).release(1).should.be.revertedWith("NOT_DEPOSITOR");
+    await locker.connect(resolver).release(1).should.be.revertedWith("NOT_DEPOSITOR");
   });
 
   it("Should forbid release of nonexistent locker", async function () {
@@ -345,7 +349,8 @@ describe("LexLocker", function () {
     token.approve(locker.address, getBigNumber(10000));
     
     await locker.connect(resolver).registerResolver(true, 20);
-    await locker.deposit(receiver.address, resolver.address, token.address, getBigNumber(1000), 0, false, "TEST");
+    await locker.deposit(receiver.address, resolver.address, token.address, [getBigNumber(1000), getBigNumber(2000)], 0, false, "TEST");
+    await locker.release(1);
     await locker.release(1);
     await locker.release(1).should.be.reverted;
   });
@@ -365,10 +370,10 @@ describe("LexLocker", function () {
     token.approve(locker.address, getBigNumber(10000));
     
     await locker.connect(resolver).registerResolver(true, 20);
-    await locker.deposit(receiver.address, resolver.address, token.address, getBigNumber(1000), 0, false, "TEST");
+    await locker.deposit(receiver.address, resolver.address, token.address, [getBigNumber(1000)], 0, false, "TEST");
     await locker.lock(1, "TEST");
     await locker.connect(receiver).lock(1, "TEST");
-    await locker.release(1).should.be.revertedWith("locked");
+    await locker.release(1).should.be.revertedWith("LOCKED");
   });
 
   it("Should allow withdrawal by depositor after termination time", async function () {
@@ -386,7 +391,7 @@ describe("LexLocker", function () {
     token.approve(locker.address, getBigNumber(10000));
     
     await locker.connect(resolver).registerResolver(true, 20);
-    await locker.deposit(receiver.address, resolver.address, token.address, getBigNumber(1000), 0, false, "TEST");
+    await locker.deposit(receiver.address, resolver.address, token.address, [getBigNumber(1000), getBigNumber(1000)], 0, false, "TEST");
     await locker.withdraw(1);
   });
 
@@ -405,8 +410,8 @@ describe("LexLocker", function () {
     token.approve(locker.address, getBigNumber(10000));
     
     await locker.connect(resolver).registerResolver(true, 20);
-    await locker.deposit(receiver.address, resolver.address, token.address, getBigNumber(1000), 0, false, "TEST");
-    await locker.connect(receiver).withdraw(1).should.be.revertedWith("not depositor");
+    await locker.deposit(receiver.address, resolver.address, token.address, [getBigNumber(1000)], 0, false, "TEST");
+    await locker.connect(receiver).withdraw(1).should.be.revertedWith("NOT_DEPOSITOR");
   });
 
   it("Should forbid withdrawal after lock", async function () {
@@ -424,9 +429,9 @@ describe("LexLocker", function () {
     token.approve(locker.address, getBigNumber(10000));
     
     await locker.connect(resolver).registerResolver(true, 20);
-    await locker.deposit(receiver.address, resolver.address, token.address, getBigNumber(1000), 0, false, "TEST");
+    await locker.deposit(receiver.address, resolver.address, token.address, [getBigNumber(1000), getBigNumber(1000)], 0, false, "TEST");
     await locker.lock(1, "TEST");
-    await locker.withdraw(1).should.be.revertedWith("locked");
+    await locker.withdraw(1).should.be.revertedWith("LOCKED");
   });
 
   it("Should forbid withdrawal by depositor before termination time", async function () {
@@ -445,8 +450,8 @@ describe("LexLocker", function () {
     
     await locker.connect(resolver).registerResolver(true, 20);
     // term is set to August 29, 2023 5:30:30 AM GMT-04:00 DST
-    await locker.deposit(receiver.address, resolver.address, token.address, getBigNumber(1000), 1693301430, false, "TEST");
-    await locker.withdraw(1).should.be.revertedWith("not terminated");
+    await locker.deposit(receiver.address, resolver.address, token.address, [getBigNumber(1000), getBigNumber(1000)], 1693301430, false, "TEST");
+    await locker.withdraw(1).should.be.revertedWith("NOT_TERMINATED");
   });
 
   it("Should forbid withdrawal of nonexistent locker", async function () {
@@ -465,7 +470,7 @@ describe("LexLocker", function () {
     
     await locker.connect(resolver).registerResolver(true, 20);
     // term is set to August 29, 2023 5:30:30 AM GMT-04:00 DST
-    await locker.deposit(receiver.address, resolver.address, token.address, getBigNumber(1000), 0, false, "TEST");
+    await locker.deposit(receiver.address, resolver.address, token.address, [getBigNumber(1000), getBigNumber(1000)], 0, false, "TEST");
     await locker.withdraw(2).should.be.reverted;
   });
 
@@ -484,7 +489,7 @@ describe("LexLocker", function () {
     token.approve(locker.address, getBigNumber(10000));
     
     await locker.connect(resolver).registerResolver(true, 20);
-    await locker.deposit(receiver.address, resolver.address, token.address, getBigNumber(1000), 0, false, "TEST");
+    await locker.deposit(receiver.address, resolver.address, token.address, [getBigNumber(1000), getBigNumber(1000)], 0, false, "TEST");
     await locker.lock(1, "TEST");
   });
 
@@ -503,7 +508,7 @@ describe("LexLocker", function () {
     token.approve(locker.address, getBigNumber(10000));
     
     await locker.connect(resolver).registerResolver(true, 20);
-    await locker.deposit(receiver.address, resolver.address, token.address, getBigNumber(1000), 0, false, "TEST");
+    await locker.deposit(receiver.address, resolver.address, token.address, [getBigNumber(1000), getBigNumber(1000)], 0, false, "TEST");
     await locker.connect(receiver).lock(1, "TEST");
   });
 
@@ -522,8 +527,8 @@ describe("LexLocker", function () {
     token.approve(locker.address, getBigNumber(10000));
     
     await locker.connect(resolver).registerResolver(true, 20);
-    await locker.deposit(receiver.address, resolver.address, token.address, getBigNumber(1000), 0, false, "TEST");
-    await locker.connect(resolver).lock(1, "TEST").should.be.revertedWith("not party");
+    await locker.deposit(receiver.address, resolver.address, token.address, [getBigNumber(1000), getBigNumber(1000)], 0, false, "TEST");
+    await locker.connect(resolver).lock(1, "TEST").should.be.revertedWith("NOT_PARTY");
   });
 
   it("Should forbid lock of nonexistent locker", async function () {
@@ -541,7 +546,7 @@ describe("LexLocker", function () {
     token.approve(locker.address, getBigNumber(10000));
     
     await locker.connect(resolver).registerResolver(true, 20);
-    await locker.deposit(receiver.address, resolver.address, token.address, getBigNumber(1000), 0, false, "TEST");
+    await locker.deposit(receiver.address, resolver.address, token.address, [getBigNumber(1000), getBigNumber(1000)], 0, false, "TEST");
     await locker.lock(2).should.be.reverted;
     await locker.connect(receiver).lock(2, "TEST").should.be.reverted;
     await locker.connect(resolver).lock(2, "TEST").should.be.reverted;
@@ -562,7 +567,8 @@ describe("LexLocker", function () {
     token.approve(locker.address, getBigNumber(10000));
     
     await locker.connect(resolver).registerResolver(true, 20);
-    await locker.deposit(receiver.address, resolver.address, token.address, getBigNumber(1000), 0, false, "TEST");
+    await locker.deposit(receiver.address, resolver.address, token.address, [getBigNumber(1000), getBigNumber(1000)], 0, false, "TEST");
+    await locker.release(1);
     await locker.lock(1, "TEST");
     
     const resolutionAmount = getBigNumber(1000).div(2);
@@ -583,10 +589,11 @@ describe("LexLocker", function () {
     await locker.deployed();
  
     await locker.connect(resolver).registerResolver(true, 20);
-    await locker.deposit(receiver.address, resolver.address, token.address, getBigNumber(1000), 0, false, "TEST", { value: getBigNumber(1000) });
+    await locker.deposit(receiver.address, resolver.address, token.address, [getBigNumber(500), getBigNumber(500)], 0, false, "TEST", { value: getBigNumber(1000) });
+    await locker.release(1);
     await locker.lock(1, "TEST");
     
-    const resolutionAmount = getBigNumber(1000).div(2);
+    const resolutionAmount = getBigNumber(500).div(2);
 
     await locker.connect(resolver).resolve(1, resolutionAmount, resolutionAmount, "TEST");
   });
@@ -608,7 +615,8 @@ describe("LexLocker", function () {
     token.approve(locker.address, getBigNumber(10000));
     
     await locker.connect(resolver).registerResolver(true, 20);
-    await locker.depositBento(receiver.address, resolver.address, token.address, getBigNumber(1000), 0, true, "TEST");
+    await locker.depositBento(receiver.address, resolver.address, token.address, [getBigNumber(1000), getBigNumber(1000)], 0, true, "TEST");
+    await locker.release(1);
     await locker.lock(1, "TEST");
 
     const resolutionAmount = getBigNumber(1000).div(2);
@@ -631,7 +639,7 @@ describe("LexLocker", function () {
     await nft.approve(locker.address, 1);
    
     await locker.connect(resolver).registerResolver(true, 20);
-    await locker.deposit(receiver.address, resolver.address, nft.address, 1, 0, true, "TEST");
+    await locker.deposit(receiver.address, resolver.address, nft.address, [1], 0, true, "TEST");
     await locker.lock(1, "TEST");
 
     await locker.connect(resolver).resolve(1, 1, 0, "TEST");
@@ -652,13 +660,14 @@ describe("LexLocker", function () {
     token.approve(locker.address, getBigNumber(10000));
     
     await locker.connect(resolver).registerResolver(true, 20);
-    await locker.deposit(receiver.address, resolver.address, token.address, getBigNumber(1000), 0, false, "TEST");
+    await locker.deposit(receiver.address, resolver.address, token.address, [getBigNumber(1000), getBigNumber(1000)], 0, false, "TEST");
+    await locker.release(1);
     await locker.lock(1, "TEST");
     
     const resolutionAmount = getBigNumber(1000).div(2);
 
-    await locker.connect(depositor).resolve(1, resolutionAmount, resolutionAmount, "TEST").should.be.revertedWith("not resolver");
-    await locker.connect(receiver).resolve(1, resolutionAmount, resolutionAmount, "TEST").should.be.revertedWith("not resolver");
+    await locker.connect(depositor).resolve(1, resolutionAmount, resolutionAmount, "TEST").should.be.revertedWith("NOT_RESOLVER");
+    await locker.connect(receiver).resolve(1, resolutionAmount, resolutionAmount, "TEST").should.be.revertedWith("NOT_RESOLVER");
   });
 
   it("Should forbid resolution of unlocked locker", async function () {
@@ -676,11 +685,11 @@ describe("LexLocker", function () {
     token.approve(locker.address, getBigNumber(10000));
     
     await locker.connect(resolver).registerResolver(true, 20);
-    await locker.deposit(receiver.address, resolver.address, token.address, getBigNumber(1000), 0, false, "TEST");
+    await locker.deposit(receiver.address, resolver.address, token.address, [getBigNumber(1000)], 0, false, "TEST");
     
     const resolutionAmount = getBigNumber(1000).div(2);
 
-    await locker.connect(resolver).resolve(1, resolutionAmount, resolutionAmount, "TEST").should.be.revertedWith("not locked");
+    await locker.connect(resolver).resolve(1, resolutionAmount, resolutionAmount, "TEST").should.be.revertedWith("NOT_LOCKED");
   });
 
   it("Should forbid resolution that is not balanced with locked remainder", async function () {
@@ -698,12 +707,13 @@ describe("LexLocker", function () {
     token.approve(locker.address, getBigNumber(10000));
     
     await locker.connect(resolver).registerResolver(true, 20);
-    await locker.deposit(receiver.address, resolver.address, token.address, getBigNumber(1000), 0, false, "TEST");
+    await locker.deposit(receiver.address, resolver.address, token.address, [getBigNumber(1000), getBigNumber(1000)], 0, false, "TEST");
+    await locker.release(1);
     await locker.lock(1, "TEST");
     
-    const resolutionAmount = getBigNumber(1000).div(2);
+    const resolutionAmount = getBigNumber(2000).div(2);
 
-    await locker.connect(resolver).resolve(1, resolutionAmount, resolutionAmount + 100, "TEST").should.be.revertedWith("not remainder");
+    await locker.connect(resolver).resolve(1, resolutionAmount, resolutionAmount, "TEST").should.be.revertedWith("NOT_REMAINDER");
   });
   
   it("Should forbid repeat resolution", async function () {
@@ -721,7 +731,7 @@ describe("LexLocker", function () {
     token.approve(locker.address, getBigNumber(10000));
     
     await locker.connect(resolver).registerResolver(true, 20);
-    await locker.deposit(receiver.address, resolver.address, token.address, getBigNumber(1000), 0, false, "TEST");
+    await locker.deposit(receiver.address, resolver.address, token.address, [getBigNumber(1000)], 0, false, "TEST");
     await locker.lock(1, "TEST");
     
     const resolutionAmount = getBigNumber(1000).div(2);
@@ -749,7 +759,7 @@ describe("LexLocker", function () {
     const locker = await Locker.deploy(bentoAddress, lexDAO.address, wethAddress);
     await locker.deployed();
 
-    locker.connect(nonLexDAO).registerAgreement(1, "TEST").should.be.revertedWith("not LexDAO");
+    locker.connect(nonLexDAO).registerAgreement(1, "TEST").should.be.revertedWith("NOT_LEXDAO");
   });
 
   it("Should allow LexDAO to transfer role", async function () {
@@ -771,7 +781,7 @@ describe("LexLocker", function () {
     const locker = await Locker.deploy(bentoAddress, lexDAO.address, wethAddress);
     await locker.deployed();
 
-    locker.connect(nonLexDAO).updateLexDAO(newLexDAO.address).should.be.revertedWith("not LexDAO");
+    locker.connect(nonLexDAO).updateLexDAO(newLexDAO.address).should.be.revertedWith("NOT_LEXDAO");
   });
 
   it.skip("Should execute ERC20 token permit", async function () {
