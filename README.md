@@ -49,7 +49,7 @@ Ethereum mainnet: [`0xf91e098a4da86aACf082F35F976E8eb18005b33c`](https://ethersc
 
 Arbitrum: [`0x60692a57F8b25108FcC27f21a964D05a2D39d2b5`](https://arbiscan.io/address/0x60692a57f8b25108fcc27f21a964d05a2d39d2b5#code)
 
-Polygon: [`0x8745e9e94859b6f4dbb2f3124a6836566bc35c1b`](https://polygonscan.com/address/0x8745e9e94859b6f4dbb2f3124a6836566bc35c1b#code) **ALPHA**
+Polygon: [`0xc680eB3C6395C8Ab94Cbf3Bb46Cd7C3340481e40`](https://polygonscan.com/address/0xc680eB3C6395C8Ab94Cbf3Bb46Cd7C3340481e40#code) **ALPHA**
 
 xDai: [`0x102fd5b56E89EAf0336BB7b11c0F981Aa73f4462`](https://blockscout.com/xdai/mainnet/address/0x102fd5b56E89EAf0336BB7b11c0F981Aa73f4462/contracts)
 
