@@ -11,28 +11,32 @@ contract LexLocker {
     address public lexDAO;
     address immutable wETH;
     
-    uint256 lockerCount;
+    uint256 public lockerCount;
     
     /// @dev Chain Id at this contract's deployment.
-    uint256 immutable DOMAIN_SEPARATOR_CHAIN_ID;
+    uint256 immutable INITIAL_CHAIN_ID;
     /// @dev EIP-712 typehash for this contract's domain at deployment.
-    bytes32 immutable _DOMAIN_SEPARATOR;
-    
-    bytes32 public constant INVOICE_HASH = keccak256("DepositInvoiceSig(address depositor,address receiver,address resolver,string details)");
+    bytes32 immutable INITIAL_DOMAIN_SEPARATOR;
+    /// @dev EIP-712 typehash for invoicing deposits.
+    bytes32 constant INVOICE_HASH = keccak256("DepositInvoiceSig(address depositor,address receiver,address resolver,string details)");
 
     mapping(uint256 => string) public agreements;
     mapping(uint256 => Locker) public lockers;
     mapping(address => Resolver) public resolvers;
     mapping(address => uint256) public lastActionTimestamp;
-
-    constructor(IBentoBoxMinimal _bento, address _lexDAO, address _wETH) {
-        bento = _bento;
-        bento.registerProtocol();
-        lexDAO = _lexDAO;
-        wETH = _wETH;
+    
+    /// @notice Initialize contract.
+    /// @param bento_ BentoBox vault contract.
+    /// @param lexDAO_ Legal engineering guild.
+    /// @param wETH_ Wrapped ether (or native asset) supported on BentoBox.
+    constructor(IBentoBoxMinimal bento_, address lexDAO_, address wETH_) {
+        bento_.registerProtocol();
+        bento = bento_;
+        lexDAO = lexDAO_;
+        wETH = wETH_;
         
-        DOMAIN_SEPARATOR_CHAIN_ID = block.chainid;
-        _DOMAIN_SEPARATOR = _calculateDomainSeparator();
+        INITIAL_CHAIN_ID = block.chainid;
+        INITIAL_DOMAIN_SEPARATOR = _calculateDomainSeparator();
     }
     
     /// @dev Events to assist web3 applications.
@@ -96,12 +100,12 @@ contract LexLocker {
     }
     
     /// @notice EIP-712 typehash for this contract's domain.
-    function DOMAIN_SEPARATOR() public view returns (bytes32 domainSeperator) {
-        domainSeperator = block.chainid == DOMAIN_SEPARATOR_CHAIN_ID ? _DOMAIN_SEPARATOR : _calculateDomainSeparator();
+    function DOMAIN_SEPARATOR() public view returns (bytes32 domainSeparator) {
+        domainSeparator = block.chainid == INITIAL_CHAIN_ID ? INITIAL_DOMAIN_SEPARATOR : _calculateDomainSeparator();
     }
     
-    function _calculateDomainSeparator() private view returns (bytes32 domainSeperator) {
-        domainSeperator = keccak256(
+    function _calculateDomainSeparator() private view returns (bytes32 domainSeparator) {
+        domainSeparator = keccak256(
             abi.encode(
                 keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"),
                 keccak256(bytes("LexLocker")),
@@ -161,14 +165,15 @@ contract LexLocker {
             safeTransferFrom(token, msg.sender, address(this), sum);
         }
  
-        // Increment registered lockers and assign # to escrow deposit.
-        unchecked {
-            lockerCount++;
-        }
         registration = lockerCount;
         lockers[registration] = 
             Locker(
                 false, nft, false, msg.sender, receiver, resolver, token, value, 0, 0, sum, termination);
+        
+        // Increment registered lockers.
+        unchecked {
+            lockerCount++;
+        }
         
         emit Deposit(false, nft, msg.sender, receiver, resolver, token, sum, termination, registration, details);
     }
@@ -216,14 +221,15 @@ contract LexLocker {
             bento.transfer(token, msg.sender, address(this), sum);
         }
 
-        // Increment registered lockers and assign # to escrow deposit.
-        unchecked {
-            lockerCount++;
-        }
         registration = lockerCount;
         lockers[registration] = 
         Locker(
             true, false, false, msg.sender, receiver, resolver, token, value, 0, 0, sum, termination);
+        
+        // Increment registered lockers.
+        unchecked {
+            lockerCount++;
+        }
         
         emit Deposit(false, false, msg.sender, receiver, resolver, token, sum, termination, registration, details);
     }
@@ -325,7 +331,7 @@ contract LexLocker {
     }
     
     /// @notice Releases escrowed assets back to designated `depositor` 
-    // - can only be called by `depositor` if `termination` reached.
+    /// - can only be called by `depositor` if `termination` reached.
     /// @param registration The index of escrow deposit.
     function withdraw(uint256 registration) external nonReentrant {
         Locker storage locker = lockers[registration];
@@ -369,7 +375,7 @@ contract LexLocker {
     }
     
     /// @notice Resolves locked escrow deposit in split between parties - if NFT, must be complete award (so, one party receives '0')
-    // - `resolverFee` is automatically deducted from both parties' awards.
+    /// - `resolverFee` is automatically deducted from both parties' awards.
     /// @param registration The registration index of escrow deposit.
     /// @param depositorAward The sum given to `depositor`.
     /// @param receiverAward The sum given to `receiver`.
@@ -437,11 +443,11 @@ contract LexLocker {
     }
 
     /// @notice Protocol for LexDAO to update role.
-    /// @param _lexDAO Account to assign role to.
-    function updateLexDAO(address _lexDAO) external {
+    /// @param lexDAO_ Account to assign role to.
+    function updateLexDAO(address lexDAO_) external {
         require(msg.sender == lexDAO, "NOT_LEXDAO");
-        lexDAO = _lexDAO;
-        emit UpdateLexDAO(_lexDAO);
+        lexDAO = lexDAO_;
+        emit UpdateLexDAO(lexDAO_);
     }
 
     // **** BATCHER UTILITIES **** //
