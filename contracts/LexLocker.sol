@@ -91,21 +91,21 @@ contract LexLocker {
     }
     
     /// @dev Reentrancy guard.
-    uint256 unlocked = 1;
+    uint256 locked = 1;
     modifier nonReentrant() {
-        require(unlocked == 1, "LOCKED");
-        unlocked = 2;
+        require(locked == 1, "REENTRANCY");
+        locked = 2;
         _;
-        unlocked = 1;
+        locked = 1;
     }
     
     /// @notice EIP-712 typehash for this contract's domain.
-    function DOMAIN_SEPARATOR() public view returns (bytes32 domainSeparator) {
-        domainSeparator = block.chainid == INITIAL_CHAIN_ID ? INITIAL_DOMAIN_SEPARATOR : _calculateDomainSeparator();
+    function DOMAIN_SEPARATOR() public view returns (bytes32) {
+        return block.chainid == INITIAL_CHAIN_ID ? INITIAL_DOMAIN_SEPARATOR : _calculateDomainSeparator();
     }
     
-    function _calculateDomainSeparator() private view returns (bytes32 domainSeparator) {
-        domainSeparator = keccak256(
+    function _calculateDomainSeparator() private view returns (bytes32) {
+        return keccak256(
             abi.encode(
                 keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"),
                 keccak256(bytes("LexLocker")),
@@ -150,7 +150,7 @@ contract LexLocker {
         // Tally up `sum` from `value` milestones.
         uint256 sum;
         unchecked {
-            for (uint256 i = 0; i < value.length; i++) {
+            for (uint256 i; i < value.length; ++i) {
                 sum += value[i];
             }
         }
@@ -172,7 +172,7 @@ contract LexLocker {
         
         // Increment registered lockers.
         unchecked {
-            lockerCount++;
+            ++lockerCount;
         }
         
         emit Deposit(false, nft, msg.sender, receiver, resolver, token, sum, termination, registration, details);
@@ -203,7 +203,7 @@ contract LexLocker {
         // Tally up `sum` from `value` milestones.
         uint256 sum;
         unchecked {
-            for (uint256 i = 0; i < value.length; i++) {
+            for (uint256 i; i < value.length; ++i) {
                 sum += value[i];
             }
         }
@@ -228,7 +228,7 @@ contract LexLocker {
         
         // Increment registered lockers.
         unchecked {
-            lockerCount++;
+            ++lockerCount;
         }
         
         emit Deposit(false, false, msg.sender, receiver, resolver, token, sum, termination, registration, details);
@@ -307,15 +307,15 @@ contract LexLocker {
             if (locker.token == address(0)) { // Release ETH.
                 safeTransferETH(locker.receiver, locker.value[locker.currentMilestone]);
                 locker.paid += locker.value[locker.currentMilestone];
-                locker.currentMilestone++;
+                ++locker.currentMilestone;
             } else if (locker.bento) { // Release BentoBox shares.
                 bento.transfer(locker.token, address(this), locker.receiver, locker.value[locker.currentMilestone]);
                 locker.paid += locker.value[locker.currentMilestone];
-                locker.currentMilestone++;
+                ++locker.currentMilestone;
             } else if (!locker.nft) { // ERC-20.
                 safeTransfer(locker.token, locker.receiver, locker.value[locker.currentMilestone]);
                 locker.paid += locker.value[locker.currentMilestone];
-                locker.currentMilestone++;
+                ++locker.currentMilestone;
             } else { // Release NFT (note: set to single milestone).
                 safeTransferFrom(locker.token, address(this), locker.receiver, locker.value[0]);
                 locker.paid += locker.value[0];
@@ -457,7 +457,7 @@ contract LexLocker {
     function multicall(bytes[] calldata data) external returns (bytes[] memory results) {
         results = new bytes[](data.length);
         unchecked {
-            for (uint256 i = 0; i < data.length; i++) {
+            for (uint256 i; i < data.length; ++i) {
                 (bool success, bytes memory result) = address(this).delegatecall(data[i]);
                 if (!success) {
                     if (result.length < 68) revert();
@@ -526,28 +526,102 @@ contract LexLocker {
     /// @param token Address of ERC-20 token.
     /// @param recipient Account to send tokens to.
     /// @param value Token amount to send.
-    function safeTransfer(address token, address recipient, uint256 value) private {
-        // transfer(address,uint256).
-        (bool success, bytes memory data) = token.call(abi.encodeWithSelector(0xa9059cbb, recipient, value));
-        require(success && (data.length == 0 || abi.decode(data, (bool))), "TRANSFER_FAILED");
+    function safeTransfer(
+        address token,
+        address recipient,
+        uint256 value
+    ) internal {
+        bool callStatus;
+
+        assembly {
+            // Get a pointer to some free memory.
+            let freeMemoryPointer := mload(0x40)
+
+            // Write the abi-encoded calldata to memory piece by piece:
+            mstore(freeMemoryPointer, 0xa9059cbb00000000000000000000000000000000000000000000000000000000) // Begin with the function selector.
+            mstore(add(freeMemoryPointer, 4), and(recipient, 0xffffffffffffffffffffffffffffffffffffffff)) // Mask and append the "to" argument.
+            mstore(add(freeMemoryPointer, 36), value) // Finally append the "amount" argument. No mask as it's a full 32 byte value.
+
+            // Call the token and store if it succeeded or not.
+            // We use 68 because the calldata length is 4 + 32 * 2.
+            callStatus := call(gas(), token, 0, freeMemoryPointer, 68, 0, 0)
+        }
+
+        require(didLastOptionalReturnCallSucceed(callStatus), "TRANSFER_FAILED");
     }
 
     /// @notice Provides 'safe' ERC-20/721 {transferFrom} for tokens that don't consistently return 'true/false'.
     /// @param token Address of ERC-20/721 token.
     /// @param sender Account to send tokens from.
     /// @param recipient Account to send tokens to.
-    /// @param value Token amount to send - if NFT, 'tokenId'.
-    function safeTransferFrom(address token, address sender, address recipient, uint256 value) private {
-        // transferFrom(address,address,uint256).
-        (bool success, bytes memory data) = token.call(abi.encodeWithSelector(0x23b872dd, sender, recipient, value));
-        require(success && (data.length == 0 || abi.decode(data, (bool))), "PULL_FAILED");
+    /// @param amount Token amount to send - if NFT, 'tokenId'.
+    function safeTransferFrom(
+        address token,
+        address sender,
+        address recipient,
+        uint256 amount
+    ) internal {
+        bool callStatus;
+
+        assembly {
+            // Get a pointer to some free memory.
+            let freeMemoryPointer := mload(0x40)
+
+            // Write the abi-encoded calldata to memory piece by piece:
+            mstore(freeMemoryPointer, 0x23b872dd00000000000000000000000000000000000000000000000000000000) // Begin with the function selector.
+            mstore(add(freeMemoryPointer, 4), and(sender, 0xffffffffffffffffffffffffffffffffffffffff)) // Mask and append the "from" argument.
+            mstore(add(freeMemoryPointer, 36), and(recipient, 0xffffffffffffffffffffffffffffffffffffffff)) // Mask and append the "to" argument.
+            mstore(add(freeMemoryPointer, 68), amount) // Finally append the "amount" argument. No mask as it's a full 32 byte value.
+
+            // Call the token and store if it succeeded or not.
+            // We use 100 because the calldata length is 4 + 32 * 3.
+            callStatus := call(gas(), token, 0, freeMemoryPointer, 100, 0, 0)
+        }
+
+        require(didLastOptionalReturnCallSucceed(callStatus), "TRANSFER_FROM_FAILED");
     }
     
     /// @notice Provides 'safe' ETH transfer.
     /// @param recipient Account to send ETH to.
     /// @param value ETH amount to send.
-    function safeTransferETH(address recipient, uint256 value) private {
-        (bool success, ) = recipient.call{value: value}("");
-        require(success, "ETH_TRANSFER_FAILED");
+    function safeTransferETH(address recipient, uint256 value) internal {
+        bool callStatus;
+
+        assembly {
+            // Transfer the ETH and store if it succeeded or not.
+            callStatus := call(gas(), recipient, value, 0, 0, 0, 0)
+        }
+
+        require(callStatus, "ETH_TRANSFER_FAILED");
+    }
+
+    function didLastOptionalReturnCallSucceed(bool callStatus) private pure returns (bool success) {
+        assembly {
+            // If the call reverted:
+            if iszero(callStatus) {
+                // Copy the revert message into memory.
+                returndatacopy(0, 0, returndatasize())
+
+                // Revert with the same message.
+                revert(0, returndatasize())
+            }
+
+            switch returndatasize()
+            case 32 {
+                // Copy the return data into memory.
+                returndatacopy(0, 0, returndatasize())
+
+                // Set success to whether it returned true.
+                success := iszero(iszero(mload(0)))
+            }
+            case 0 {
+                // There was no return data.
+                success := 1
+            }
+            default {
+                // It returned some malformed output.
+                success := 0
+            }
+        }
     }
 }
